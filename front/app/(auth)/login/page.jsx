@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
@@ -12,6 +12,12 @@ export default function Login() {
   const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(false);
   const [modalVisivel, setModalVisivel] = useState(false);
+  
+  useEffect(() => {
+    sessionStorage.removeItem('emailUsuarioLogado');
+    sessionStorage.removeItem('id_sessao');
+    sessionStorage.removeItem('tipoPerfil');
+  }, []);
 
   async function tentarLogin(forcarLogin = false) {
     setErro('');
@@ -21,7 +27,7 @@ export default function Login() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, senha, forcarLogin }),
-        credentials: 'include',
+        credentials: 'include', 
       });
       
       const data = await resp.json();
@@ -40,7 +46,6 @@ export default function Login() {
 
       const perfisIds = data.perfis?.map((p) => p.id_perfil) || [];
       
-      // 👉 LINHA ADICIONADA: Salva o tipo de perfil no navegador para a tela /perfil saber qual menu exibir
       sessionStorage.setItem('tipoPerfil', perfisIds.includes(1) ? 'admin' : 'operador');
 
       if (perfisIds.includes(1)) {
@@ -62,12 +67,10 @@ export default function Login() {
   return (
     <div className="flex min-h-screen bg-white">
       
-      {/* Painel Esquerdo - Branding / Imagem */}
       <div className="hidden lg:flex lg:w-1/2 bg-[#f0f6fa] border-r border-gray-100 flex-col justify-between p-12 relative overflow-hidden">
         <div className="absolute -top-24 -left-24 w-96 h-96 bg-[#103f6b]/15 rounded-full mix-blend-multiply filter blur-3xl"></div>
         <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-[#103f6b]/20 rounded-full mix-blend-multiply filter blur-3xl"></div>
         
-        {/* Logo perfeitamente centralizada na área disponível */}
         <div className="relative z-10 flex-1 flex items-center justify-center w-full">
           <img 
             src="/imagem/logo.png" 
@@ -86,11 +89,9 @@ export default function Login() {
         </div>
       </div>
 
-      {/* Painel Direito - Formulário Minimalista */}
       <div className="flex flex-1 items-center justify-center p-6 sm:p-12">
         <div className="w-full max-w-sm">
           
-          {/* Cabeçalho */}
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-gray-900">Bem-vindo de volta</h2>
             <p className="text-sm text-gray-500 mt-1">Insira suas credenciais para continuar.</p>
@@ -145,7 +146,6 @@ export default function Login() {
             </button>
           </form>
 
-          {/* Link para Cadastro */}
           <div className="mt-8 pt-6 border-t border-gray-100 text-center">
             <p className="text-sm text-gray-600">
               Não tem uma conta?{' '}
@@ -159,8 +159,6 @@ export default function Login() {
           </div>
         </div>
       </div>
-
-      {/* Modal de Confirmação de Sessão */}
       {modalVisivel && (
         <div className="fixed inset-0 bg-gray-900/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white p-6 sm:p-8 rounded-xl max-w-sm w-full shadow-xl">
