@@ -1,16 +1,20 @@
 # Suporte Inteligente (RAG Corporativo)
 
-    Sistema de suporte corporativo soberano baseado na arquitetura Retrieval-Augmented Generation (RAG). Desenvolvido como Trabalho de Conclusão de Curso (TCC) em Sistemas de Informação.
+    Sistema de suporte corporativo soberano baseado na arquitetura Retrieval-Augmented Generation (RAG).
+    Desenvolvido como Trabalho de Conclusão de Curso (TCC) em Sistemas de Informação.
 
-    Este repositório contém o código-fonte da aplicação (Frontend e Backend) e adota práticas rigorosas de engenharia de software para controle de versão, integração e isolamento de dependências.
+    Este repositório contém o código-fonte da aplicação (Frontend e Backend) e adota práticas rigorosas 
+    de engenharia de software para controle de versão, integração e isolamento de dependências.
 
 ## Estrutura do Monorepo
 
 * **/front**: Aplicação cliente construída com React, Next.js (App Router) e Tailwind CSS.
-* **/back**: API RESTful e orquestração de IA implementada em Python com FastAPI, SQLAlchemy, PostgreSQL/pgvector e integração local com Ollama.
+* **/back**: API RESTful e orquestração de IA implementada em Python com FastAPI, SQLAlchemy,
+*  PostgreSQL/pgvector e integração local com Ollama.
 
 ## Configuração do Ambiente Local
-    Para executar o projeto localmente para desenvolvimento e testes, certifique-se de ter o Node.js (v18+), Python (v3.10+) e o Ollama instalados na máquina.
+    Para executar o projeto localmente para desenvolvimento e testes, certifique-se de ter 
+    o Node.js (v18+), Python (v3.10+) e o Ollama instalados na máquina.
 
 ### 1. Clonar o Repositório
     Inicie clonando o repositório e acedendo ao diretório raiz:
@@ -39,7 +43,9 @@
 
     # Instalação das dependências
         pip install -r requirements.txt
-        Antes de iniciar, crie um ficheiro .env na pasta back (utilizando o .env.example como referência para as credenciais da base de dados PostgreSQL) e inicie o servidor:
+        Antes de iniciar, crie um ficheiro .env na pasta back
+    (utilizando o .env.example como referência para as credenciais da base
+    de dados PostgreSQL) e inicie o servidor:
 
         Bash
         uvicorn app.main:app --reload
@@ -61,12 +67,15 @@
 Estratégia de Branching
     O repositório utiliza um modelo disciplinado de integração:
 
-        main: Branch de produção. Protegida. Recebe atualizações exclusivamente via Pull Requests (PR) aprovados. O envio direto (push) é tecnicamente bloqueado pelo servidor.
+        main: Branch de produção. Protegida. Recebe atualizações exclusivamente via Pull Requests (PR) aprovados.
+    O envio direto (push) é tecnicamente bloqueado pelo servidor.
 
-        test: Branch de integração e testes operacionais. Todo o desenvolvimento ativo deve ser consolidado e testado aqui antes da promoção para a branch de produção.
+        test: Branch de integração e testes operacionais.
+    Todo o desenvolvimento ativo deve ser consolidado e testado aqui antes da promoção para a branch de produção.
 
     Padrão de Commits (Conventional Commits)
-        Para manter a rastreabilidade, a automação de changelogs e a legibilidade do histórico de versão, este projeto adota a especificação Conventional Commits.
+        Para manter a rastreabilidade, a automação de changelogs e a legibilidade do histórico de versão,
+    este projeto adota a especificação Conventional Commits.
 
     Todo commit deve obrigatoriamente seguir a seguinte estrutura de assinatura:
         "tipo: descrição clara e no imperativo"
@@ -104,7 +113,8 @@ Fluxo de Trabalho (Como Codificar e Enviar)
     Envie a atualização para a nuvem:
         git push origin test
 
-    Para oficializar a versão, aceda ao GitHub e abra um Pull Request (PR) solicitando a fusão (merge) da branch test para a main.
+    Para oficializar a versão, aceda ao GitHub e abra um Pull Request (PR) solicitando a fusão (merge)
+da branch test para a main.
 
 Controle de Versão e Propriedade Intelectual
 Desenvolvimento e Engenharia de Software: Maria Clara de Aquino de Souza
@@ -114,4 +124,7 @@ Vínculo Acadêmico: Trabalho de Conclusão de Curso (TCC) em Sistemas de Inform
 Versão da Documentação: 1.0.0-release
 
 Aviso de Licenciamento e Uso
-    A arquitetura de processamento vetorial, os pipelines de integração LLM e o código-fonte associados a este repositório constituem propriedade intelectual de caráter acadêmico e corporativo. A reprodução, distribuição, ramificação (forking) não autorizada ou engenharia reversa do ecossistema de RAG aqui documentado submetem-se às diretrizes institucionais de proteção a direitos autorais e integridade de software.
+    A arquitetura de processamento vetorial, os pipelines de integração LLM e o código-fonte associados
+a este repositório constituem propriedade intelectual de caráter acadêmico e corporativo. A reprodução,
+distribuição, ramificação (forking) não autorizada ou engenharia reversa do ecossistema de RAG aqui
+documentado submetem-se às diretrizes institucionais de proteção a direitos autorais e integridade de software.
