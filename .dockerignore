@@ -1,0 +1,9 @@
+node_modules/
+frontend/node_modules/
+frontend/dist/
+.env
+*.log
+npm-debug.log*
+.git/
+src/__pycache__/
+src/python_backend/__pycache__/

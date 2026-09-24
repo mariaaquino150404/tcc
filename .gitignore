@@ -1,0 +1,21 @@
+# Dependências e Frontend
+**/node_modules/
+**/.next/
+**/out/
+**/build/
+
+# Python e Backend
+**/__pycache__/
+**/*.pyc
+**/.venv/
+**/venv/
+**/env/
+
+# Segredos
+**/.env
+**/.env.*
+*.pem
+
+# Sistema/IDEs
+.DS_Store
+.vscode/

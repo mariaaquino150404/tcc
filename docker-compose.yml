@@ -1,0 +1,73 @@
+services:
+  # ─── Banco de Dados ────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-postgres}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASS}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ─── Backend Node.js + React (produção) ───────────────────────────────────
+  backend:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-postgres}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASS: ${DB_PASS}
+      JWT_SECRET: ${JWT_SECRET}
+      EMAIL_APP: ${EMAIL_APP}
+      EMAIL_APP_PASSWORD: ${EMAIL_APP_PASSWORD}
+      PORT: 3000
+      NODE_ENV: production
+      PYTHON_API_URL: http://python:8000
+      OLLAMA_URL: http://ollama:11434
+    depends_on:
+      postgres:
+        condition: service_healthy
+      python:
+        condition: service_started
+
+  # ─── Python / FastAPI ──────────────────────────────────────────────────────
+  python:
+    build: ./src/python_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-postgres}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASS: ${DB_PASS}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ─── Ollama (LLM local) ───────────────────────────────────────────────────
+  # Após `docker compose up`, rode para baixar o modelo:
+  #   docker exec -it <id_ollama> ollama pull llama3
+  ollama:
+    image: ollama/ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+volumes:
+  postgres_data:
+  ollama_data:
