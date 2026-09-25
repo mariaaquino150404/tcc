@@ -1,23 +1,34 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { sairDoSistema } from '../../lib/auth';
 import { 
-  Search, Loader2, ExternalLink, AlertCircle,
-  Home, MessageSquare, UserCircle, LogOut 
+  Send, Loader2, ExternalLink, AlertCircle,
+  Home, MessageSquare, UserCircle, LogOut, Bot, User
 } from 'lucide-react';
+
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 export default function Chat() {
   const router = useRouter();
   const [emailUsuario, setEmailUsuario] = useState('');
   
-  // Estados da IA
+  // O estado agora é uma lista de mensagens para formar um chat real
+  const [mensagens, setMensagens] = useState([
+    { 
+      role: 'ia', 
+      texto: 'Olá! Sou o LUMORA, o seu assistente de suporte técnico. Como posso ajudar com os manuais e fluxos hoje?' 
+    }
+  ]);
   const [pergunta, setPergunta] = useState('');
-  const [resultado, setResultado] = useState(null);
   const [buscando, setBuscando] = useState(false);
+  
+  // Referência para rolar a tela automaticamente para baixo
+  const fimDoChatRef = useRef(null);
 
   useEffect(() => {
     const email = sessionStorage.getItem('emailUsuarioLogado');
@@ -28,44 +39,68 @@ export default function Chat() {
     setEmailUsuario(email);
   }, [router]);
 
+  // Efeito para rolar suavemente para a última mensagem
+  useEffect(() => {
+    fimDoChatRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [mensagens, buscando]);
+
   async function handleBuscar(e) {
     if (e) e.preventDefault();
-    if (!pergunta.trim()) return;
+    if (!pergunta.trim() || buscando) return;
 
+    const novaPergunta = pergunta;
+    setPergunta(''); // Limpa o input imediatamente para melhor UX
+    
+    // Adiciona a pergunta do utilizador na tela
+    setMensagens(prev => [...prev, { role: 'user', texto: novaPergunta }]);
     setBuscando(true);
-    setResultado(null);
 
     try {
       const resp = await fetch('/api/chat/responder', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pergunta }),
+        body: JSON.stringify({ pergunta: novaPergunta }),
         credentials: 'include',
       });
 
       if (!resp.ok) throw new Error('Erro na busca');
 
       const data = await resp.json();
-      setResultado(data);
+      
+      // Adiciona a resposta da IA na tela
+      if (data.texto) {
+        setMensagens(prev => [...prev, { 
+          role: 'ia', 
+          texto: data.texto, 
+          url: data.url, 
+          similaridade: data.similaridade 
+        }]);
+      } else {
+        setMensagens(prev => [...prev, { 
+          role: 'ia', 
+          erro: true, 
+          texto: data.mensagem || 'Não encontrei informações na base de conhecimento.' 
+        }]);
+      }
     } catch {
-      setResultado({ erro: 'Ocorreu um erro ao conectar com a IA. Tente novamente.' });
+      setMensagens(prev => [...prev, { 
+        role: 'ia', 
+        erro: true, 
+        texto: 'Ocorreu um erro ao conectar com o servidor. Tente novamente.' 
+      }]);
     } finally {
       setBuscando(false);
     }
   }
 
   return (
-    <div className="flex h-screen bg-white overflow-hidden text-gray-800">
+    <div className="flex h-screen bg-gray-50 overflow-hidden text-gray-800">
       
-      {/* Sidebar Lateral - Tema Verde Operador */}
-      <aside className="w-64 bg-[#059669] text-white flex flex-col justify-between p-5 select-none shrink-0">
+      {/* Sidebar Lateral */}
+      <aside className="w-64 bg-[#059669] text-white flex flex-col justify-between p-5 select-none shrink-0 z-20 shadow-xl">
         <div>
           <div className="flex items-center gap-3 mb-8 px-2">
-            <img 
-              src="/imagem/logo.png" 
-              alt="Logo" 
-              className="h-8 w-auto object-contain bg-white/90 p-1 rounded"
-            />
+            <img src="/imagem/logo.png" alt="Logo" className="h-8 w-auto object-contain bg-white/90 p-1 rounded" />
             <div>
               <h2 className="font-bold text-sm tracking-wide leading-none">Suporte IA</h2>
               <span className="text-[10px] text-emerald-200 uppercase font-semibold">Área do Operador</span>
@@ -73,22 +108,13 @@ export default function Chat() {
           </div>
 
           <nav className="space-y-1.5 text-sm">
-            <Link 
-              href="/painel-operador" 
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-emerald-100 hover:bg-white/10 hover:text-white transition-colors"
-            >
+            <Link href="/painel-operador" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-emerald-100 hover:bg-white/10 hover:text-white transition-colors">
               <Home size={18} /> Página Inicial
             </Link>
-            <Link 
-              href="/chat" 
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white/15 font-medium text-white transition-colors"
-            >
+            <Link href="/chat" className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white/15 font-medium text-white transition-colors shadow-inner">
               <MessageSquare size={18} /> Consultar IA
             </Link>
-            <Link 
-              href="/perfil" 
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-emerald-100 hover:bg-white/10 hover:text-white transition-colors"
-            >
+            <Link href="/perfil" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-emerald-100 hover:bg-white/10 hover:text-white transition-colors">
               <UserCircle size={18} /> Meu Perfil
             </Link>
           </nav>
@@ -99,107 +125,141 @@ export default function Chat() {
             <p className="text-[11px] text-emerald-200 uppercase font-semibold tracking-wider">Logado como</p>
             <p className="text-xs text-white truncate font-medium">{emailUsuario || '...'}</p>
           </div>
-          <button 
-            onClick={sairDoSistema} 
-            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-rose-200 hover:text-white hover:bg-rose-600/30 rounded-lg transition-colors cursor-pointer"
-          >
+          <button onClick={sairDoSistema} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-rose-200 hover:text-white hover:bg-rose-600/30 rounded-lg transition-colors cursor-pointer">
             <LogOut size={16} /> Encerrar Sessão
           </button>
         </div>
       </aside>
 
-      {/* Conteúdo Principal */}
-      <main className="flex-1 flex flex-col overflow-hidden bg-gray-50">
+      {/* Conteúdo Principal do Chat (Transformado em Coluna Flexível Pura) */}
+      <main className="flex-1 flex flex-col h-full bg-gray-50">
         
-        {/* Header */}
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 shrink-0">
-          <div>
-            <h1 className="text-lg font-bold text-gray-900 leading-tight">Buscar Solução</h1>
-            <p className="text-xs text-gray-500">Consulte manuais e fluxos utilizando a IA</p>
+        {/* Header no fluxo normal (shrink-0 garante que não é esmagado) */}
+        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 shrink-0 shadow-sm z-10">
+          <div className="flex items-center gap-3">
+            <div className="bg-emerald-100 p-2 rounded-lg text-[#059669]">
+              <Bot size={20} />
+            </div>
+            <div>
+              <h1 className="text-base font-bold text-gray-900 leading-tight">Assistente LUMORA</h1>
+              <p className="text-[11px] text-gray-500 font-medium">Baseado nos manuais oficiais da empresa</p>
+            </div>
           </div>
         </header>
 
-        {/* Área do Chat */}
-        <section className="flex-1 p-8 overflow-y-auto">
-          <div className="max-w-4xl mx-auto flex flex-col h-full mt-4">
+        {/* Área de Mensagens (Ocupa o espaço livre e tem rolagem) */}
+        <section className="flex-1 overflow-y-auto p-4 sm:p-8">
+          <div className="max-w-4xl mx-auto flex flex-col gap-6 pb-4">
             
-            {/* Caixa de Pesquisa */}
-            <form onSubmit={handleBuscar} className="relative mb-8">
-              <input
-                type="text"
-                placeholder="Ex: Como configuro o roteador PPPoE?"
-                value={pergunta}
-                onChange={(e) => setPergunta(e.target.value)}
-                className="w-full p-4 pr-36 text-sm border border-gray-300 rounded-xl shadow-sm focus:outline-none focus:border-[#059669] focus:ring-1 focus:ring-[#059669] transition-all"
-              />
-              <button
-                type="submit"
-                disabled={buscando || !pergunta.trim()}
-                className="absolute right-2 top-2 bottom-2 px-6 bg-[#059669] hover:bg-[#047857] text-white font-semibold text-sm rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            {mensagens.map((msg, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`flex w-full ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                {buscando ? <Loader2 className="animate-spin" size={18} /> : <Search size={18} />}
-                <span>Buscar</span>
-              </button>
-            </form>
+                <div className={`flex gap-4 max-w-[85%] md:max-w-[75%] ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                  
+                  {/* Avatar */}
+                  <div className={`shrink-0 h-8 w-8 sm:h-10 sm:w-10 rounded-full flex items-center justify-center shadow-sm
+                    ${msg.role === 'user' ? 'bg-[#059669] text-white' : 'bg-white border border-gray-200 text-[#059669]'}`}
+                  >
+                    {msg.role === 'user' ? <User size={18} /> : <Bot size={20} />}
+                  </div>
 
-            {/* Área de Resultados com Animação (Framer Motion) */}
-            <div className="flex-1">
-              {resultado && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4 }}
-                  className="bg-white p-6 md:p-8 rounded-xl shadow-sm border border-gray-200"
-                >
-                  {/* Se encontrou uma resposta com alta similaridade */}
-                  {resultado.texto ? (
-                    <div className="space-y-6">
-                      <div className="flex items-start gap-4">
-                        <div className="bg-emerald-50 p-2.5 rounded-xl text-[#059669] shrink-0">
-                          <MessageSquare size={24} />
+                  {/* Balão de Mensagem */}
+                  <div className={`flex flex-col gap-2 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                    
+                    <div className={`p-4 sm:p-5 rounded-2xl shadow-sm text-sm
+                      ${msg.role === 'user' 
+                        ? 'bg-[#059669] text-white rounded-tr-none' 
+                        : msg.erro 
+                          ? 'bg-rose-50 border border-rose-100 text-rose-800 rounded-tl-none'
+                          : 'bg-white border border-gray-200 text-gray-800 rounded-tl-none'}`}
+                    >
+                      {msg.role === 'user' ? (
+                        <p className="leading-relaxed">{msg.texto}</p>
+                      ) : (
+                        <div className={`prose prose-sm max-w-none 
+                          ${msg.erro ? 'prose-p:text-rose-800' : 'prose-slate prose-p:leading-relaxed prose-pre:bg-gray-800 prose-pre:text-gray-100 prose-a:text-[#059669] prose-a:no-underline hover:prose-a:underline prose-li:marker:text-[#059669]'}`}
+                        >
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {msg.texto}
+                          </ReactMarkdown>
                         </div>
-                        <div>
-                          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Resposta Gerada</h3>
-                          <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-wrap">
-                            {resultado.texto}
-                          </p>
-                        </div>
-                      </div>
+                      )}
+                    </div>
 
-                      <div className="pt-5 border-t border-gray-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                        {resultado.url && (
-                          <a
-                            href={resultado.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-1.5 text-[#059669] font-semibold text-xs hover:text-[#047857] hover:underline transition-colors"
-                          >
-                            <ExternalLink size={16} />
-                            Acessar Documento Original
+                    {/* Rodapé da Mensagem da IA */}
+                    {msg.role === 'ia' && (msg.url || msg.similaridade) && (
+                      <div className="flex flex-wrap items-center gap-3 pl-2 mt-1">
+                        {msg.url && (
+                          <a href={msg.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[#059669] font-medium text-[11px] hover:underline">
+                            <ExternalLink size={12} /> Acessar Documento
                           </a>
                         )}
-                        
-                        {resultado.similaridade && (
-                          <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-3 py-1.5 rounded-md">
-                            Confiança: {(resultado.similaridade * 100).toFixed(1)}%
+                        {msg.similaridade && (
+                          <span className="text-[10px] font-semibold text-gray-500 bg-gray-200/60 px-2 py-1 rounded-md">
+                            Confiança: {(msg.similaridade * 100).toFixed(1)}%
                           </span>
                         )}
                       </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-3 text-amber-700 bg-amber-50 p-4 rounded-lg">
-                      <AlertCircle size={20} className="shrink-0" />
-                      <p className="text-sm font-medium">
-                        {resultado.mensagem || resultado.erro || 'Nenhuma resposta encontrada na base de conhecimento.'}
-                      </p>
-                    </div>
-                  )}
-                </motion.div>
-              )}
-            </div>
-            
+                    )}
+
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+
+            {/* Indicador de Digitação (Loading) */}
+            {buscando && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex w-full justify-start">
+                <div className="flex gap-4 max-w-[85%] flex-row">
+                  <div className="shrink-0 h-10 w-10 rounded-full bg-white border border-gray-200 text-[#059669] flex items-center justify-center shadow-sm">
+                    <Loader2 size={20} className="animate-spin" />
+                  </div>
+                  <div className="bg-white border border-gray-200 p-5 rounded-2xl rounded-tl-none shadow-sm flex items-center gap-1.5 h-[60px]">
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></span>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            <div ref={fimDoChatRef} />
           </div>
         </section>
+
+        {/* Área de Input (Fixa no fluxo do flex, nunca vai sobrepor os balões) */}
+        <div className="shrink-0 w-full bg-gray-50 pt-2 pb-8 px-4 sm:px-8 border-t border-transparent">
+          <form onSubmit={handleBuscar} className="max-w-4xl mx-auto relative bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden flex items-end transition-shadow focus-within:shadow-lg focus-within:border-[#059669]/50">
+            <textarea
+              rows={1}
+              placeholder="Pergunte ao LUMORA sobre manuais ou procedimentos..."
+              value={pergunta}
+              onChange={(e) => setPergunta(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleBuscar(e);
+                }
+              }}
+              className="w-full max-h-32 min-h-[60px] p-4 pr-16 text-sm text-gray-800 bg-transparent resize-none focus:outline-none placeholder-gray-400"
+            />
+            <button
+              type="submit"
+              disabled={buscando || !pergunta.trim()}
+              className="absolute right-2 bottom-2 h-11 w-11 flex items-center justify-center bg-[#059669] hover:bg-[#047857] text-white rounded-xl transition-all disabled:opacity-40 disabled:scale-95 disabled:hover:bg-[#059669] cursor-pointer"
+            >
+              <Send size={18} className="ml-1" />
+            </button>
+          </form>
+          <div className="max-w-4xl mx-auto text-center mt-3">
+            <p className="text-[10px] text-gray-400">O LUMORA pode cometer erros de interpretação. Verifique os documentos originais quando necessário.</p>
+          </div>
+        </div>
+
       </main>
     </div>
   );
