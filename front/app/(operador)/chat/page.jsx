@@ -5,10 +5,11 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { sairDoSistema } from '../../lib/auth';
+import toast from 'react-hot-toast'; 
 import { 
   Send, Loader2, ExternalLink, AlertCircle,
   Home, MessageSquare, UserCircle, LogOut, Bot, User,
-  ThumbsUp, ThumbsDown // 👉 Adicionados ícones de feedback
+  ThumbsUp, ThumbsDown, Copy 
 } from 'lucide-react';
 
 import ReactMarkdown from 'react-markdown';
@@ -18,7 +19,6 @@ export default function Chat() {
   const router = useRouter();
   const [emailUsuario, setEmailUsuario] = useState('');
   
-  // O estado agora é uma lista de mensagens para formar um chat real
   const [mensagens, setMensagens] = useState([
     { 
       role: 'ia', 
@@ -28,7 +28,6 @@ export default function Chat() {
   const [pergunta, setPergunta] = useState('');
   const [buscando, setBuscando] = useState(false);
   
-  // Referência para rolar a tela automaticamente para baixo
   const fimDoChatRef = useRef(null);
 
   useEffect(() => {
@@ -40,7 +39,6 @@ export default function Chat() {
     setEmailUsuario(email);
   }, [router]);
 
-  // Efeito para rolar suavemente para a última mensagem
   useEffect(() => {
     fimDoChatRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [mensagens, buscando]);
@@ -50,9 +48,8 @@ export default function Chat() {
     if (!pergunta.trim() || buscando) return;
 
     const novaPergunta = pergunta;
-    setPergunta(''); // Limpa o input imediatamente para melhor UX
+    setPergunta(''); 
     
-    // Adiciona a pergunta do utilizador na tela
     setMensagens(prev => [...prev, { role: 'user', texto: novaPergunta }]);
     setBuscando(true);
 
@@ -63,31 +60,32 @@ export default function Chat() {
         body: JSON.stringify({ pergunta: novaPergunta }),
         credentials: 'include',
       });
-
-      if (!resp.ok) throw new Error('Erro na busca');
-
+      if (!resp.ok) {
+        toast.error('O servidor rejeitou a conexão.'); 
+        throw new Error('Erro na busca');
+      }
       const data = await resp.json();
       
-      // Adiciona a resposta da IA na tela
       if (data.texto) {
         setMensagens(prev => [...prev, { 
           role: 'ia', 
           texto: data.texto, 
           url: data.url, 
           similaridade: data.similaridade,
-          id_consulta: data.id_consulta, // 👉 Guarda o ID da consulta
-          feedbackDado: false // 👉 Estado de controle
+          id_consulta: data.id_consulta, 
+          feedbackDado: false 
         }]);
       } else {
         setMensagens(prev => [...prev, { 
           role: 'ia', 
           erro: true, 
           texto: data.mensagem || 'Não encontrei informações na base de conhecimento.',
-          id_consulta: data.id_consulta, // 👉 Também guarda o ID para pendências
+          id_consulta: data.id_consulta, 
           feedbackDado: false
         }]);
       }
     } catch {
+      toast.error('Falha de conexão com a IA.'); 
       setMensagens(prev => [...prev, { 
         role: 'ia', 
         erro: true, 
@@ -98,9 +96,7 @@ export default function Chat() {
     }
   }
 
-  // 👉 NOVA FUNÇÃO PARA ENVIAR FEEDBACK
   async function handleFeedback(index, id_consulta, util) {
-    // Atualiza a UI imediatamente para sensação de tempo real
     setMensagens(prev => {
       const novas = [...prev];
       novas[index] = { ...novas[index], feedbackDado: true };
@@ -114,15 +110,21 @@ export default function Chat() {
         body: JSON.stringify({ id_consulta, util }),
         credentials: 'include',
       });
+      toast.success(util ? 'Obrigado! Feedback positivo registado.' : 'Anotado! Trabalharemos para melhorar.');
     } catch (err) {
-      console.error("Falha ao registrar feedback", err);
+      toast.error("Não foi possível enviar a sua avaliação.");
     }
   }
+  const copiarTexto = (texto) => {
+    navigator.clipboard.writeText(texto).then(() => {
+      toast.success('Resposta copiada para a área de transferência!');
+    }).catch(() => {
+      toast.error('Falha ao copiar o texto.');
+    });
+  };
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden text-gray-800">
-      
-      {/* Sidebar Lateral */}
       <aside className="w-64 bg-[#059669] text-white flex flex-col justify-between p-5 select-none shrink-0 z-20 shadow-xl">
         <div>
           <div className="flex items-center gap-3 mb-8 px-2">
@@ -132,7 +134,6 @@ export default function Chat() {
               <span className="text-[10px] text-emerald-200 uppercase font-semibold">Área do Operador</span>
             </div>
           </div>
-
           <nav className="space-y-1.5 text-sm">
             <Link href="/painel-operador" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-emerald-100 hover:bg-white/10 hover:text-white transition-colors">
               <Home size={18} /> Página Inicial
@@ -145,7 +146,6 @@ export default function Chat() {
             </Link>
           </nav>
         </div>
-
         <div className="pt-4 border-t border-white/10 space-y-3">
           <div className="px-2">
             <p className="text-[11px] text-emerald-200 uppercase font-semibold tracking-wider">Logado como</p>
@@ -156,11 +156,7 @@ export default function Chat() {
           </button>
         </div>
       </aside>
-
-      {/* Conteúdo Principal do Chat */}
       <main className="flex-1 flex flex-col h-full bg-gray-50">
-        
-        {/* Header no fluxo normal */}
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 shrink-0 shadow-sm z-10">
           <div className="flex items-center gap-3">
             <div className="bg-emerald-100 p-2 rounded-lg text-[#059669]">
@@ -172,11 +168,8 @@ export default function Chat() {
             </div>
           </div>
         </header>
-
-        {/* Área de Mensagens */}
         <section className="flex-1 overflow-y-auto p-4 sm:p-8">
-          <div className="max-w-4xl mx-auto flex flex-col gap-6 pb-4">
-            
+          <div className="max-w-4xl mx-auto flex flex-col gap-6 pb-4">           
             {mensagens.map((msg, index) => (
               <motion.div
                 key={index}
@@ -185,24 +178,28 @@ export default function Chat() {
                 className={`flex w-full ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div className={`flex gap-4 max-w-[85%] md:max-w-[75%] ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                  
-                  {/* Avatar */}
                   <div className={`shrink-0 h-8 w-8 sm:h-10 sm:w-10 rounded-full flex items-center justify-center shadow-sm
                     ${msg.role === 'user' ? 'bg-[#059669] text-white' : 'bg-white border border-gray-200 text-[#059669]'}`}
                   >
                     {msg.role === 'user' ? <User size={18} /> : <Bot size={20} />}
                   </div>
-
-                  {/* Balão de Mensagem */}
                   <div className={`flex flex-col gap-2 ${msg.role === 'user' ? 'items-end' : 'items-start'} w-full`}>
-                    
-                    <div className={`p-4 sm:p-5 rounded-2xl shadow-sm text-sm w-full
+                    <div className={`p-4 sm:p-5 rounded-2xl shadow-sm text-sm w-full relative group
                       ${msg.role === 'user' 
                         ? 'bg-[#059669] text-white rounded-tr-none' 
                         : msg.erro 
                           ? 'bg-rose-50 border border-rose-100 text-rose-800 rounded-tl-none'
                           : 'bg-white border border-gray-200 text-gray-800 rounded-tl-none'}`}
                     >
+                      {msg.role === 'ia' && !msg.erro && (
+                        <button 
+                          onClick={() => copiarTexto(msg.texto)}
+                          className="absolute top-3 right-3 text-gray-400 hover:text-[#059669] opacity-0 group-hover:opacity-100 transition-opacity p-1.5 bg-gray-50 rounded-md border border-gray-200 cursor-pointer"
+                          title="Copiar Resposta"
+                        >
+                          <Copy size={14} />
+                        </button>
+                      )}
                       {msg.role === 'user' ? (
                         <p className="leading-relaxed">{msg.texto}</p>
                       ) : (
@@ -215,8 +212,6 @@ export default function Chat() {
                         </div>
                       )}
                     </div>
-
-                    {/* 👉 RODAPÉ DA MENSAGEM: Links, Confiança e Feedback */}
                     {msg.role === 'ia' && (msg.url || msg.similaridade || msg.id_consulta) && (
                       <div className="flex flex-wrap items-center justify-between w-full pl-2 mt-1">
                         
@@ -232,12 +227,10 @@ export default function Chat() {
                             </span>
                           )}
                         </div>
-
-                        {/* 👉 BOTOÕES DE FEEDBACK */}
                         {msg.id_consulta && (
                           <div className="flex items-center gap-2">
                             {msg.feedbackDado ? (
-                              <span className="text-[10px] text-gray-400 italic">Obrigado por avaliar!</span>
+                              <span className="text-[10px] text-[#059669] font-semibold italic">Avaliação registada!</span>
                             ) : (
                               <>
                                 <button 
@@ -258,16 +251,12 @@ export default function Chat() {
                             )}
                           </div>
                         )}
-
                       </div>
                     )}
-
                   </div>
                 </div>
               </motion.div>
             ))}
-
-            {/* Indicador de Digitação (Loading) */}
             {buscando && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex w-full justify-start">
                 <div className="flex gap-4 max-w-[85%] flex-row">
@@ -282,12 +271,9 @@ export default function Chat() {
                 </div>
               </motion.div>
             )}
-
             <div ref={fimDoChatRef} />
           </div>
         </section>
-
-        {/* Área de Input */}
         <div className="shrink-0 w-full bg-gray-50 pt-2 pb-8 px-4 sm:px-8 border-t border-transparent">
           <form onSubmit={handleBuscar} className="max-w-4xl mx-auto relative bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden flex items-end transition-shadow focus-within:shadow-lg focus-within:border-[#059669]/50">
             <textarea

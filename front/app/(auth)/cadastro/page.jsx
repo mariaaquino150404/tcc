@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Loader2, ArrowLeft } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function Cadastro() {
   const router = useRouter();
@@ -11,22 +12,18 @@ export default function Cadastro() {
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [confirmarSenha, setConfirmarSenha] = useState('');
-  const [erro, setErro] = useState('');
-  const [sucesso, setSucesso] = useState('');
   const [carregando, setCarregando] = useState(false);
 
   async function handleCadastro(e) {
     e.preventDefault();
-    setErro('');
-    setSucesso('');
 
     if (senha !== confirmarSenha) {
-      setErro('As senhas não coincidem.');
+      toast.error('As senhas não coincidem.'); 
       return;
     }
 
     if (senha.length < 6) {
-      setErro('A senha deve ter pelo menos 6 caracteres.');
+      toast.error('A senha deve ter pelo menos 6 caracteres.'); 
       return;
     }
 
@@ -45,12 +42,12 @@ export default function Cadastro() {
         throw new Error(data.detail || 'Erro ao realizar cadastro.');
       }
 
-      setSucesso('Conta criada com sucesso! Redirecionando...');
+      toast.success('Conta criada com sucesso! Redirecionando...'); 
       setTimeout(() => {
         router.push('/login');
       }, 1500);
     } catch (err) {
-      setErro(err.message);
+      toast.error(err.message); 
     } finally {
       setCarregando(false);
     }
@@ -58,7 +55,6 @@ export default function Cadastro() {
 
   return (
     <div className="flex h-screen bg-white overflow-hidden">
-      {/* Painel Esquerdo - Branding */}
       <div className="hidden lg:flex lg:w-1/2 bg-[#f0f6fa] border-r border-gray-100 flex-col justify-between p-10 xl:p-12 relative overflow-hidden">
         <div className="absolute -top-24 -left-24 w-80 h-80 bg-[#103f6b]/15 rounded-full mix-blend-multiply filter blur-3xl"></div>
         <div className="absolute -bottom-24 -right-24 w-80 h-80 bg-[#103f6b]/20 rounded-full mix-blend-multiply filter blur-3xl"></div>
@@ -72,7 +68,6 @@ export default function Cadastro() {
           </Link>
         </div>
 
-        {/* Logo perfeitamente centralizada na área disponível */}
         <div className="relative z-10 flex-1 flex items-center justify-center w-full">
           <img 
             src="/imagem/logo.png" 
@@ -91,7 +86,6 @@ export default function Cadastro() {
         </div>
       </div>
 
-      {/* Painel Direito - Formulário Equilibrado */}
       <div className="flex flex-1 items-center justify-center px-6 sm:px-10">
         <div className="w-full max-w-sm">
           <div className="lg:hidden mb-4">
@@ -164,18 +158,6 @@ export default function Cadastro() {
                 className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-lg text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#103f6b] focus:ring-1 focus:ring-[#103f6b] transition-colors shadow-sm"
               />
             </div>
-
-            {erro && (
-              <div className="p-2.5 bg-red-50 text-red-600 text-xs rounded-md border border-red-100 font-medium">
-                {erro}
-              </div>
-            )}
-
-            {sucesso && (
-              <div className="p-2.5 bg-green-50 text-green-700 text-xs rounded-md border border-green-200 font-medium">
-                {sucesso}
-              </div>
-            )}
 
             <button
               type="submit"

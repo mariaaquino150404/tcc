@@ -3,20 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  UserPlus,
-  Search,
-  CheckCircle,
-  XCircle,
-  Loader2,
-  X,
-  Shield,
-  User,
-  MoreVertical,
-  AlertTriangle,
-  Key,
-  Trash2,
-  AlertCircle
+  UserPlus, Search, CheckCircle, XCircle, Loader2, X, Shield, 
+  User, MoreVertical, AlertTriangle, Key, Trash2, AlertCircle
 } from 'lucide-react';
+import toast from 'react-hot-toast'; 
 import SidebarAdmin from '../../../components/sidebar/sideBarAdmin';
 
 export default function GestaoUsuarios() {
@@ -25,21 +15,12 @@ export default function GestaoUsuarios() {
   const [carregando, setCarregando] = useState(true);
   const [erroPesquisa, setErroPesquisa] = useState('');
   const [busca, setBusca] = useState('');
-
-  // Dropdown de Ações
   const [menuAbertoId, setMenuAbertoId] = useState(null);
-
-  // Estados dos Modais de Ação
   const [modalNovoAberto, setModalNovoAberto] = useState(false);
   const [modalEditAberto, setModalEditAberto] = useState(false);
   const [modalExclusaoAberto, setModalExclusaoAberto] = useState(false);
   const [salvando, setSalvando] = useState(false);
-
-  // Sistema de Alertas
-  const [alerta, setAlerta] = useState({ visivel: false, tipo: 'sucesso', mensagem: '' });
   const [confirmacao, setConfirmacao] = useState({ visivel: false, id_usuario: null });
-
-  // Formulários
   const [formNovo, setFormNovo] = useState({ nome: '', email: '', senha: '', id_perfil: 2 });
   const [formEdit, setFormEdit] = useState({ id_usuario: null, nome: '', email: '', id_perfil: 2 });
   const [formExclusao, setFormExclusao] = useState({ id_usuario: null, nome: '', email_admin: '', senha_admin: '' });
@@ -57,9 +38,6 @@ export default function GestaoUsuarios() {
     return () => document.removeEventListener('click', handleClickFora);
   }, [router]);
 
-  const mostrarAlerta = (tipo, mensagem) => {
-    setAlerta({ visivel: true, tipo, mensagem });
-  };
 
   async function carregarUsuarios() {
     setCarregando(true);
@@ -86,6 +64,7 @@ export default function GestaoUsuarios() {
       setUsuarios(Array.isArray(data) ? data : []);
     } catch (err) {
       setErroPesquisa(err.message);
+      toast.error('Erro ao buscar utilizadores.'); 
     } finally {
       setCarregando(false);
     }
@@ -103,9 +82,9 @@ export default function GestaoUsuarios() {
       setUsuarios((prev) =>
         prev.map((u) => (u.id_usuario === idUsuario ? { ...u, status: !statusAtual } : u))
       );
-      mostrarAlerta('sucesso', `Status atualizado para ${!statusAtual ? 'Ativo' : 'Inativo'}.`);
+      toast.success(`Conta ${!statusAtual ? 'Ativada' : 'Desativada'} com sucesso!`); 
     } catch (err) {
-      mostrarAlerta('erro', err.message);
+      toast.error(err.message); // 👉 Toast Erro
     }
   }
 
@@ -127,9 +106,9 @@ export default function GestaoUsuarios() {
       setModalNovoAberto(false);
       setFormNovo({ nome: '', email: '', senha: '', id_perfil: 2 });
       carregarUsuarios();
-      mostrarAlerta('sucesso', 'Usuário criado com sucesso!');
+      toast.success('Usuário criado com sucesso!'); 
     } catch (err) {
-      mostrarAlerta('erro', err.message);
+      toast.error(err.message); 
     } finally {
       setSalvando(false);
     }
@@ -152,9 +131,9 @@ export default function GestaoUsuarios() {
 
       setModalEditAberto(false);
       carregarUsuarios();
-      mostrarAlerta('sucesso', 'Dados atualizados com sucesso!');
+      toast.success('Dados atualizados com sucesso!'); 
     } catch (err) {
-      mostrarAlerta('erro', err.message);
+      toast.error(err.message); 
     } finally {
       setSalvando(false);
     }
@@ -178,9 +157,9 @@ export default function GestaoUsuarios() {
       setModalExclusaoAberto(false);
       setFormExclusao({ id_usuario: null, nome: '', email_admin: '', senha_admin: '' });
       carregarUsuarios();
-      mostrarAlerta('sucesso', 'Usuário excluído com sucesso!');
+      toast.success('Usuário excluído permanentemente.');
     } catch (err) {
-      mostrarAlerta('erro', err.message);
+      toast.error(err.message);
     } finally {
       setSalvando(false);
     }
@@ -202,9 +181,9 @@ export default function GestaoUsuarios() {
       const data = await resp.json();
       
       if (!resp.ok) throw new Error(data.detail || 'Erro ao resetar senha.');
-      mostrarAlerta('sucesso', data.message);
+      toast.success(data.message || 'Senha resetada para Mudar@123'); 
     } catch (err) {
-      mostrarAlerta('erro', err.message);
+      toast.error(err.message);
     }
   }
 
@@ -224,20 +203,13 @@ export default function GestaoUsuarios() {
     u.nome?.toLowerCase().includes(busca.toLowerCase()) ||
     u.email?.toLowerCase().includes(busca.toLowerCase())
   );
-
-  // Estilos globais reutilizáveis
   const inputEstilo = "w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#103f6b]/20 focus:border-[#103f6b] transition-all duration-200";
 
   return (
     <div className="flex h-screen bg-[#f8fafc] overflow-hidden text-gray-800 font-sans selection:bg-[#103f6b]/20">
       
-      {/* Componente da Sidebar Importado Aqui */}
       <SidebarAdmin />
-
-      {/* Conteúdo Principal */}
       <main className="flex-1 flex flex-col overflow-hidden relative">
-        
-        {/* Header Superior Glassmorphism */}
         <header className="h-20 bg-white/80 backdrop-blur-md border-b border-gray-100 flex items-center justify-between px-10 shrink-0 z-10 sticky top-0">
           <div>
             <h1 className="text-xl font-extrabold text-gray-900 tracking-tight">Gestão de Usuários</h1>
@@ -251,11 +223,7 @@ export default function GestaoUsuarios() {
             <UserPlus size={18} strokeWidth={2.5} /> Novo Usuário
           </button>
         </header>
-
-        {/* Área Central */}
         <section className="flex-1 p-10 overflow-y-auto space-y-6">
-          
-          {/* Barra de Pesquisa */}
           <div className="flex items-center gap-3 bg-white p-2 rounded-2xl border border-gray-100 shadow-sm focus-within:ring-2 focus-within:ring-[#103f6b]/10 focus-within:border-[#103f6b]/30 transition-all max-w-2xl">
             <div className="pl-3 text-gray-400">
               <Search size={18} strokeWidth={2.5} />
@@ -268,13 +236,11 @@ export default function GestaoUsuarios() {
               className="w-full py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none bg-transparent"
             />
             {busca && (
-              <button onClick={() => setBusca('')} className="pr-3 text-gray-400 hover:text-gray-600 transition-colors">
+              <button onClick={() => setBusca('')} className="pr-3 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer">
                 <X size={16} strokeWidth={2.5} />
               </button>
             )}
           </div>
-
-          {/* Tabela de Usuários */}
           <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-visible">
             {carregando ? (
               <div className="py-32 flex flex-col items-center justify-center text-gray-400 gap-3">
@@ -383,9 +349,6 @@ export default function GestaoUsuarios() {
         </section>
       </main>
 
-      {/* --- MODAIS PRINCIPAIS --- */}
-
-      {/* Modal Criar Usuário */}
       {modalNovoAberto && (
         <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center z-[50] p-4">
           <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 border border-gray-100 animate-in fade-in zoom-in-95">
@@ -404,7 +367,6 @@ export default function GestaoUsuarios() {
         </div>
       )}
 
-      {/* Modal Editar Usuário */}
       {modalEditAberto && (
         <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center z-[50] p-4">
           <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 border border-gray-100 animate-in fade-in zoom-in-95">
@@ -429,8 +391,6 @@ export default function GestaoUsuarios() {
           </div>
         </div>
       )}
-
-      {/* Modal Excluir */}
       {modalExclusaoAberto && (
         <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center z-[50] p-4">
           <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 border-t-8 border-rose-500 animate-in fade-in zoom-in-95">
@@ -448,10 +408,6 @@ export default function GestaoUsuarios() {
           </div>
         </div>
       )}
-
-      {/* --- SISTEMA DE MODAIS GLOBAIS --- */}
-
-      {/* Modal de Confirmação (Reset Senha) */}
       {confirmacao.visivel && (
         <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-md flex items-center justify-center z-[9999] p-4">
           <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center animate-in fade-in zoom-in-95">
@@ -472,23 +428,6 @@ export default function GestaoUsuarios() {
         </div>
       )}
 
-      {/* Modal de Alerta */}
-      {alerta.visivel && (
-        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-md flex items-center justify-center z-[9999] p-4">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center animate-in fade-in zoom-in-95">
-            <div className={`mx-auto flex items-center justify-center h-16 w-16 rounded-full mb-5 ${alerta.tipo === 'sucesso' ? 'bg-emerald-100 text-emerald-500' : 'bg-rose-100 text-rose-500'}`}>
-              {alerta.tipo === 'sucesso' ? <CheckCircle size={32} strokeWidth={2.5} /> : <XCircle size={32} strokeWidth={2.5} />}
-            </div>
-            <h3 className="text-xl font-extrabold text-gray-900 mb-2 tracking-tight">
-              {alerta.tipo === 'sucesso' ? 'Sucesso!' : 'Ops, ocorreu um erro'}
-            </h3>
-            <p className="text-sm text-gray-500 mb-8 font-medium">{alerta.mensagem}</p>
-            <button onClick={() => setAlerta({ visivel: false, tipo: 'sucesso', mensagem: '' })} className="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold rounded-xl text-sm transition-colors cursor-pointer">
-              OK, entendi
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

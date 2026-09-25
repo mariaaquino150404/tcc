@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { sairDoSistema } from '../../lib/auth';
+import toast from 'react-hot-toast';
 import { 
   Home, 
   MessageSquare, 
@@ -24,6 +25,7 @@ export default function PainelOperador() {
   useEffect(() => {
     const email = sessionStorage.getItem('emailUsuarioLogado');
     if (!email) {
+      toast.error('Sessão expirada. Faça login novamente.'); 
       router.push('/login');
       return;
     }
@@ -33,8 +35,6 @@ export default function PainelOperador() {
 
   return (
     <div className="flex h-screen bg-white overflow-hidden text-gray-800">
-      
-      {/* Sidebar Lateral - Tema Verde Operador */}
       <aside className="w-64 bg-[#059669] text-white flex flex-col justify-between p-5 select-none shrink-0">
         <div>
           <div className="flex items-center gap-3 mb-8 px-2">
@@ -48,7 +48,6 @@ export default function PainelOperador() {
               <span className="text-[10px] text-emerald-200 uppercase font-semibold">Área do Operador</span>
             </div>
           </div>
-
           <nav className="space-y-1.5 text-sm">
             <Link 
               href="/painel-operador" 
@@ -70,7 +69,6 @@ export default function PainelOperador() {
             </Link>
           </nav>
         </div>
-
         <div className="pt-4 border-t border-white/10 space-y-3">
           <div className="px-2">
             <p className="text-[11px] text-emerald-200 uppercase font-semibold tracking-wider">Logado como</p>
@@ -84,11 +82,7 @@ export default function PainelOperador() {
           </button>
         </div>
       </aside>
-
-      {/* Conteúdo Principal */}
       <main className="flex-1 flex flex-col overflow-hidden bg-gray-50">
-        
-        {/* Header Fixo Superior */}
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 shrink-0">
           <div>
             <h1 className="text-lg font-bold text-gray-900 leading-tight capitalize">Olá, {nomeUsuario}! 👋</h1>
@@ -102,14 +96,8 @@ export default function PainelOperador() {
             <MessageSquare size={16} /> Nova Consulta
           </Link>
         </header>
-
-        {/* Área de Rolagem do Conteúdo */}
         <section className="flex-1 p-8 overflow-y-auto space-y-6">
-          
-          {/* Grid de Cards Superiores */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            
-            {/* Card 1: Status Motor */}
             <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between">
               <div>
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Status do Motor IA</p>
@@ -126,8 +114,6 @@ export default function PainelOperador() {
                 <Activity size={24} />
               </div>
             </div>
-
-            {/* Card 2: Base de Dados */}
             <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between">
               <div>
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Base de Conhecimento</p>
@@ -138,8 +124,6 @@ export default function PainelOperador() {
                 <BookOpen size={24} />
               </div>
             </div>
-
-            {/* Card 3: Histórico de Uso */}
             <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between">
               <div>
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Suas Consultas</p>
@@ -150,10 +134,7 @@ export default function PainelOperador() {
                 <Search size={24} />
               </div>
             </div>
-
           </div>
-
-          {/* Card Largo: Histórico e Ação */}
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
             <div className="p-5 border-b border-gray-100 flex items-center gap-2">
               <Clock size={18} className="text-gray-400" />

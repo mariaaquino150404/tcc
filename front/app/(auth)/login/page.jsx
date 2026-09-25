@@ -4,12 +4,12 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
+import toast from 'react-hot-toast'; 
 
 export default function Login() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
-  const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(false);
   const [modalVisivel, setModalVisivel] = useState(false);
   
@@ -20,7 +20,6 @@ export default function Login() {
   }, []);
 
   async function tentarLogin(forcarLogin = false) {
-    setErro('');
     setCarregando(true);
     try {
       const resp = await fetch('/api/auth/login', {
@@ -48,13 +47,15 @@ export default function Login() {
       
       sessionStorage.setItem('tipoPerfil', perfisIds.includes(1) ? 'admin' : 'operador');
 
+      toast.success('Bem-vindo de volta!');
+
       if (perfisIds.includes(1)) {
         router.push('/painel-adm');
       } else {
         router.push('/painel-operador');
       }
     } catch (err) {
-      setErro(err.message);
+      toast.error(err.message);
       setCarregando(false);
     }
   }
@@ -131,12 +132,6 @@ export default function Login() {
               />
             </div>
 
-            {erro && (
-              <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100">
-                {erro}
-              </div>
-            )}
-
             <button 
               type="submit" 
               disabled={carregando}
@@ -159,6 +154,8 @@ export default function Login() {
           </div>
         </div>
       </div>
+      
+   
       {modalVisivel && (
         <div className="fixed inset-0 bg-gray-900/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white p-6 sm:p-8 rounded-xl max-w-sm w-full shadow-xl">
@@ -170,9 +167,9 @@ export default function Login() {
               <button
                 onClick={() => {
                   setModalVisivel(false);
-                  setErro('Login cancelado.');
+                  toast.error('Login cancelado.'); 
                 }}
-                className="flex-1 py-2.5 px-4 bg-white border border-gray-300 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50 transition-colors"
+                className="flex-1 py-2.5 px-4 bg-white border border-gray-300 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
               >
                 Cancelar
               </button>
@@ -181,7 +178,7 @@ export default function Login() {
                   setModalVisivel(false);
                   tentarLogin(true);
                 }}
-                className="flex-1 py-2.5 px-4 bg-[#103f6b] text-white text-sm font-semibold rounded-lg hover:bg-[#0c2f50] transition-colors"
+                className="flex-1 py-2.5 px-4 bg-[#103f6b] text-white text-sm font-semibold rounded-lg hover:bg-[#0c2f50] transition-colors cursor-pointer"
               >
                 Continuar
               </button>
