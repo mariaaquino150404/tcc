@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Upload, Search, CheckCircle, Trash2, FileText, Loader2, X, AlertCircle
 } from 'lucide-react';
+import toast from 'react-hot-toast'; 
 import SidebarAdmin from '../../../components/sidebar/sideBarAdmin';
 
 export default function BibliotecaDocumentos() {
@@ -14,9 +15,13 @@ export default function BibliotecaDocumentos() {
   const [erro, setErro] = useState('');
   const [busca, setBusca] = useState('');
   
+
   const [modalAberto, setModalAberto] = useState(false);
   const [arquivo, setArquivo] = useState(null);
   const [enviando, setEnviando] = useState(false);
+
+
+  const [documentoParaExcluir, setDocumentoParaExcluir] = useState(null);
 
   useEffect(() => {
     if (!sessionStorage.getItem('emailUsuarioLogado')) {
@@ -36,6 +41,7 @@ export default function BibliotecaDocumentos() {
       setDocumentos(Array.isArray(data) ? data : []);
     } catch (err) {
       setErro(err.message);
+      toast.error('Falha ao sincronizar a base de dados.'); 
     } finally {
       setCarregando(false);
     }
@@ -45,31 +51,40 @@ export default function BibliotecaDocumentos() {
     e.preventDefault();
     if (!arquivo) return;
     setEnviando(true);
+    
     const formData = new FormData();
     formData.append('file', arquivo);
     
     try {
       const resp = await fetch('/api/documentos/upload', { method: 'POST', body: formData });
       const data = await resp.json();
+      
       if (!resp.ok) throw new Error(data.detail || 'Erro ao processar o arquivo.');
+      
+      toast.success('Documento processado e indexado na IA com sucesso!');
       setModalAberto(false);
       setArquivo(null);
       carregarDocumentos(); 
     } catch (err) {
-      alert(err.message);
+      toast.error(err.message); 
     } finally {
       setEnviando(false);
     }
   }
 
-  async function excluirDocumento(idDocumento) {
-    if (!confirm('Deseja realmente excluir este documento? Os embeddings associados a ele também serão removidos.')) return;
+  async function confirmarExclusao() {
+    if (!documentoParaExcluir) return;
+    
     try {
-      const resp = await fetch(`/api/documentos/${idDocumento}`, { method: 'DELETE' });
+      const resp = await fetch(`/api/documentos/${documentoParaExcluir}`, { method: 'DELETE' });
       if (!resp.ok) throw new Error('Falha ao excluir o documento.');
-      setDocumentos((prev) => prev.filter((d) => d.id_documento !== idDocumento));
+      
+      setDocumentos((prev) => prev.filter((d) => d.id_documento !== documentoParaExcluir));
+      toast.success('Documento removido da base de conhecimento!'); 
     } catch (err) {
-      alert(err.message);
+      toast.error(err.message); 
+    } finally {
+      setDocumentoParaExcluir(null); 
     }
   }
 
@@ -80,9 +95,7 @@ export default function BibliotecaDocumentos() {
 
   return (
     <div className="flex h-screen bg-[#f8fafc] overflow-hidden text-gray-800 font-sans selection:bg-[#103f6b]/20">
-      
       <SidebarAdmin />
-
       <main className="flex-1 flex flex-col overflow-hidden relative">
         <header className="h-20 bg-white/80 backdrop-blur-md border-b border-gray-100 flex items-center justify-between px-10 shrink-0 z-10 sticky top-0">
           <div>
@@ -96,7 +109,6 @@ export default function BibliotecaDocumentos() {
             <Upload size={18} strokeWidth={2.5} /> Enviar Arquivo
           </button>
         </header>
-
         <section className="flex-1 p-10 overflow-y-auto space-y-6">
           <div className="flex items-center gap-3 bg-white p-2 rounded-2xl border border-gray-100 shadow-sm focus-within:ring-2 focus-within:ring-[#103f6b]/10 focus-within:border-[#103f6b]/30 transition-all max-w-2xl">
             <div className="pl-3 text-gray-400">
@@ -110,12 +122,11 @@ export default function BibliotecaDocumentos() {
               className="w-full py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none bg-transparent"
             />
             {busca && (
-              <button onClick={() => setBusca('')} className="pr-3 text-gray-400 hover:text-gray-600 transition-colors">
+              <button onClick={() => setBusca('')} className="pr-3 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer">
                 <X size={16} strokeWidth={2.5} />
               </button>
             )}
           </div>
-
           <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-visible">
             {carregando ? (
               <div className="py-32 flex flex-col items-center justify-center text-gray-400 gap-3">
@@ -174,7 +185,7 @@ export default function BibliotecaDocumentos() {
                         </td>
                         <td className="py-4 px-8 text-right">
                           <button
-                            onClick={() => excluirDocumento(doc.id_documento)}
+                            onClick={() => setDocumentoParaExcluir(doc.id_documento)} // 👉 Abre o Modal
                             className="p-2 text-gray-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all cursor-pointer inline-flex"
                             title="Excluir Documento"
                           >
@@ -223,6 +234,36 @@ export default function BibliotecaDocumentos() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {documentoParaExcluir && (
+        <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center z-[50] p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 border border-gray-100 animate-in fade-in zoom-in-95">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="p-3 bg-rose-100 text-rose-600 rounded-full shrink-0">
+                <AlertCircle size={24} strokeWidth={2.5} />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 tracking-tight">Excluir documento?</h3>
+            </div>
+            <p className="text-gray-600 text-sm mb-8 leading-relaxed">
+              Tem certeza que deseja remover este documento da base de conhecimento? 
+              <span className="block mt-2 text-rose-600 font-semibold">Os embeddings da IA associados a ele serão perdidos.</span>
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDocumentoParaExcluir(null)}
+                className="flex-1 py-2.5 px-4 bg-gray-100 text-gray-700 text-sm font-bold rounded-xl hover:bg-gray-200 transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmarExclusao}
+                className="flex-1 py-2.5 px-4 bg-rose-600 text-white text-sm font-bold rounded-xl hover:bg-rose-700 transition-colors cursor-pointer shadow-md shadow-rose-600/20"
+              >
+                Sim, excluir
+              </button>
+            </div>
           </div>
         </div>
       )}

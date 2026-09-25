@@ -1,7 +1,7 @@
 services:
-  # ─── Banco de Dados ────────────────────────────────────────────────────────
+  # ─── Banco de Dados (com suporte a IA / Vetores) ──────────────────────────
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${DB_NAME:-postgres}
@@ -9,41 +9,31 @@ services:
       POSTGRES_PASSWORD: ${DB_PASS}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      # Descomente a linha abaixo se tiver um script de tabelas iniciais
+      # - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
       interval: 5s
       timeout: 5s
       retries: 10
 
-  # ─── Backend Node.js + React (produção) ───────────────────────────────────
-  backend:
-    build: .
+  # ─── Ollama (Motor LLM Local) ─────────────────────────────────────────────
+  ollama:
+    image: ollama/ollama
     restart: unless-stopped
     ports:
-      - "3000:3000"
-    environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: ${DB_NAME:-postgres}
-      DB_USER: ${DB_USER:-postgres}
-      DB_PASS: ${DB_PASS}
-      JWT_SECRET: ${JWT_SECRET}
-      EMAIL_APP: ${EMAIL_APP}
-      EMAIL_APP_PASSWORD: ${EMAIL_APP_PASSWORD}
-      PORT: 3000
-      NODE_ENV: production
-      PYTHON_API_URL: http://python:8000
-      OLLAMA_URL: http://ollama:11434
-    depends_on:
-      postgres:
-        condition: service_healthy
-      python:
-        condition: service_started
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # ─── Python / FastAPI ──────────────────────────────────────────────────────
-  python:
-    build: ./src/python_backend
+  # ─── Backend API (FastAPI / Python) ───────────────────────────────────────
+  back:
+    build: ./back
     restart: unless-stopped
     ports:
       - "8000:8000"
@@ -53,20 +43,30 @@ services:
       DB_NAME: ${DB_NAME:-postgres}
       DB_USER: ${DB_USER:-postgres}
       DB_PASS: ${DB_PASS}
+      OLLAMA_URL: http://ollama:11434
     depends_on:
       postgres:
         condition: service_healthy
+      ollama:
+        condition: service_healthy
 
-  # ─── Ollama (LLM local) ───────────────────────────────────────────────────
-  # Após `docker compose up`, rode para baixar o modelo:
-  #   docker exec -it <id_ollama> ollama pull llama3
-  ollama:
-    image: ollama/ollama
+  # ─── Frontend (Next.js / React) ───────────────────────────────────────────
+  front:
+    build: ./front
     restart: unless-stopped
     ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
+      - "3000:3000"
+    environment:
+      PYTHON_API_URL: http://back:8000
+      PORT: 3000
+      NODE_ENV: production
+      # Mantenha as outras variáveis de ambiente necessárias
+      JWT_SECRET: ${JWT_SECRET}
+      EMAIL_APP: ${EMAIL_APP}
+      EMAIL_APP_PASSWORD: ${EMAIL_APP_PASSWORD}
+    depends_on:
+      back:
+        condition: service_started
 
 volumes:
   postgres_data:

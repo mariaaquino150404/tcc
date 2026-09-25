@@ -1,13 +1,12 @@
+import { apiFetch } from './api';
+
 export async function sairDoSistema() {
   sessionStorage.clear();
-
   try {
-    await fetch('/api/auth/logout', { 
-      method: 'POST', 
-      credentials: 'include' 
-    });
+    await apiFetch('/auth/logout', { method: 'POST' });
   } catch (error) {
-    console.warn("Falha na comunicação de logout com a API.");
+    console.warn("Falha na comunicação de logout com a API.", error);
   }
+  
   window.location.href = '/login';
 }

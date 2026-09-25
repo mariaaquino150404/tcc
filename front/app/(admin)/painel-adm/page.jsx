@@ -11,6 +11,7 @@ import {
   BookOpen,
   Users
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import SidebarAdmin from '../../../components/sidebar/sideBarAdmin';
 
 export default function PainelAdm() {
@@ -19,7 +20,6 @@ export default function PainelAdm() {
   const [statusIa, setStatusIa] = useState({ online: false, carregando: true });
   const [pendencias, setPendencias] = useState([]); 
   const [carregandoMetricas, setCarregandoMetricas] = useState(true);
-  const [erro, setErro] = useState('');
 
   useEffect(() => {
     const email = sessionStorage.getItem('emailUsuarioLogado');
@@ -40,7 +40,7 @@ export default function PainelAdm() {
           const data = await resMetricas.value.json();
           setMetricas(data);
         } else {
-          setErro('Falha ao sincronizar métricas operacionais com o servidor.');
+          toast.error('Falha ao sincronizar métricas operacionais com o servidor.');
         }
 
         if (resIa.status === 'fulfilled' && resIa.value.ok) {
@@ -55,7 +55,7 @@ export default function PainelAdm() {
           setPendencias(dadosPendencias);
         }
       } catch (err) {
-        setErro(err.message || 'Erro de conexão com a API.');
+        toast.error(err.message || 'Erro de conexão com a API.'); 
       } finally {
         setCarregandoMetricas(false);
       }
@@ -67,10 +67,8 @@ export default function PainelAdm() {
   return (
     <div className="flex h-screen bg-[#f8fafc] overflow-hidden text-gray-800 font-sans selection:bg-[#103f6b]/20">
       
-      {/* Sidebar Componentizada */}
       <SidebarAdmin />
 
-      {/* Conteúdo Principal */}
       <main className="flex-1 flex flex-col overflow-hidden relative">
         <header className="h-20 bg-white/80 backdrop-blur-md border-b border-gray-100 flex items-center justify-between px-10 shrink-0 z-10 sticky top-0">
           <div>
@@ -98,14 +96,6 @@ export default function PainelAdm() {
         </header>
 
         <section className="flex-1 p-10 overflow-y-auto space-y-6">
-          {erro && (
-            <div className="p-4 bg-amber-50 text-amber-800 text-sm font-semibold rounded-2xl border border-amber-200 flex items-center gap-2">
-              <AlertCircle size={20} className="text-amber-600 shrink-0" />
-              <span>{erro}</span>
-            </div>
-          )}
-
-          {/* Cards de Métricas em Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm flex items-center justify-between border-l-4 border-l-rose-500 hover:shadow-md transition-shadow">
               <div>
@@ -163,8 +153,6 @@ export default function PainelAdm() {
               </div>
             </div>
           </div>
-
-          {/* Atalhos */}
           <div className="bg-white rounded-3xl border border-gray-100 p-8 shadow-sm">
             <h2 className="text-sm font-bold text-gray-900 mb-5 uppercase tracking-wide">Gerenciamento Operacional</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">

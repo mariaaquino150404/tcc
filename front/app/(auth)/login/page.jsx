@@ -1,27 +1,32 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
+import toast from 'react-hot-toast'; 
 
 export default function Login() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
-  const [erro, setErro] = useState('');
   const [carregando, setCarregando] = useState(false);
   const [modalVisivel, setModalVisivel] = useState(false);
+  
+  useEffect(() => {
+    sessionStorage.removeItem('emailUsuarioLogado');
+    sessionStorage.removeItem('id_sessao');
+    sessionStorage.removeItem('tipoPerfil');
+  }, []);
 
   async function tentarLogin(forcarLogin = false) {
-    setErro('');
     setCarregando(true);
     try {
       const resp = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, senha, forcarLogin }),
-        credentials: 'include',
+        credentials: 'include', 
       });
       
       const data = await resp.json();
@@ -40,8 +45,9 @@ export default function Login() {
 
       const perfisIds = data.perfis?.map((p) => p.id_perfil) || [];
       
-      // 👉 LINHA ADICIONADA: Salva o tipo de perfil no navegador para a tela /perfil saber qual menu exibir
       sessionStorage.setItem('tipoPerfil', perfisIds.includes(1) ? 'admin' : 'operador');
+
+      toast.success('Bem-vindo de volta!');
 
       if (perfisIds.includes(1)) {
         router.push('/painel-adm');
@@ -49,7 +55,7 @@ export default function Login() {
         router.push('/painel-operador');
       }
     } catch (err) {
-      setErro(err.message);
+      toast.error(err.message);
       setCarregando(false);
     }
   }
@@ -62,12 +68,10 @@ export default function Login() {
   return (
     <div className="flex min-h-screen bg-white">
       
-      {/* Painel Esquerdo - Branding / Imagem */}
       <div className="hidden lg:flex lg:w-1/2 bg-[#f0f6fa] border-r border-gray-100 flex-col justify-between p-12 relative overflow-hidden">
         <div className="absolute -top-24 -left-24 w-96 h-96 bg-[#103f6b]/15 rounded-full mix-blend-multiply filter blur-3xl"></div>
         <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-[#103f6b]/20 rounded-full mix-blend-multiply filter blur-3xl"></div>
         
-        {/* Logo perfeitamente centralizada na área disponível */}
         <div className="relative z-10 flex-1 flex items-center justify-center w-full">
           <img 
             src="/imagem/logo.png" 
@@ -86,11 +90,9 @@ export default function Login() {
         </div>
       </div>
 
-      {/* Painel Direito - Formulário Minimalista */}
       <div className="flex flex-1 items-center justify-center p-6 sm:p-12">
         <div className="w-full max-w-sm">
           
-          {/* Cabeçalho */}
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-gray-900">Bem-vindo de volta</h2>
             <p className="text-sm text-gray-500 mt-1">Insira suas credenciais para continuar.</p>
@@ -130,12 +132,6 @@ export default function Login() {
               />
             </div>
 
-            {erro && (
-              <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100">
-                {erro}
-              </div>
-            )}
-
             <button 
               type="submit" 
               disabled={carregando}
@@ -145,7 +141,6 @@ export default function Login() {
             </button>
           </form>
 
-          {/* Link para Cadastro */}
           <div className="mt-8 pt-6 border-t border-gray-100 text-center">
             <p className="text-sm text-gray-600">
               Não tem uma conta?{' '}
@@ -159,8 +154,8 @@ export default function Login() {
           </div>
         </div>
       </div>
-
-      {/* Modal de Confirmação de Sessão */}
+      
+   
       {modalVisivel && (
         <div className="fixed inset-0 bg-gray-900/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white p-6 sm:p-8 rounded-xl max-w-sm w-full shadow-xl">
@@ -172,9 +167,9 @@ export default function Login() {
               <button
                 onClick={() => {
                   setModalVisivel(false);
-                  setErro('Login cancelado.');
+                  toast.error('Login cancelado.'); 
                 }}
-                className="flex-1 py-2.5 px-4 bg-white border border-gray-300 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50 transition-colors"
+                className="flex-1 py-2.5 px-4 bg-white border border-gray-300 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
               >
                 Cancelar
               </button>
@@ -183,7 +178,7 @@ export default function Login() {
                   setModalVisivel(false);
                   tentarLogin(true);
                 }}
-                className="flex-1 py-2.5 px-4 bg-[#103f6b] text-white text-sm font-semibold rounded-lg hover:bg-[#0c2f50] transition-colors"
+                className="flex-1 py-2.5 px-4 bg-[#103f6b] text-white text-sm font-semibold rounded-lg hover:bg-[#0c2f50] transition-colors cursor-pointer"
               >
                 Continuar
               </button>

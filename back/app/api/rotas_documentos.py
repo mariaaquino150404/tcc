@@ -1,10 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from typing import List
 import os
+import io
+import PyPDF2  
 
 from app.db.database import get_db
 from app.models.documento import Documento, DocumentoParagrafoEmbedding
+from app.models.atendimento import SolucaoNaoEncontrada
 from app.schemas.documento_schema import DocumentoResponse
 from app.api.deps import obter_usuario_admin
 from app.models.usuario import Usuario
@@ -12,26 +15,46 @@ from app.services.ia_service import chunk_text, gerar_embedding
 
 router = APIRouter(prefix="/api/documentos", tags=["Documentos"])
 
-# ROTA 1: Listar documentos (Apenas Admin)
+
 @router.get("", response_model=List[DocumentoResponse])
 def listar_documentos(db: Session = Depends(get_db), admin: Usuario = Depends(obter_usuario_admin)):
     return db.query(Documento).all()
 
-# ROTA 2: Receber arquivo real via FormData (Apenas Admin)
-@router.post("/upload", response_model=DocumentoResponse, status_code=status.HTTP_201_CREATED)
+
+@router.post("/upload", status_code=status.HTTP_201_CREATED)
 async def upload_documento(
     file: UploadFile = File(...), 
+    pendencia_id: int = Form(None), 
     db: Session = Depends(get_db), 
     admin: Usuario = Depends(obter_usuario_admin)
 ):
     try:
-        # Lê os bytes do arquivo em memória
         conteudo_bytes = await file.read()
+        texto_extraido = ""
         
-        # Para fins práticos iniciais, vamos decodificar assumindo arquivo .txt
-        texto_extraido = conteudo_bytes.decode("utf-8")
+        nome_arquivo = file.filename.lower()
         
-        # 1. Salva o registro pai do documento
+        if nome_arquivo.endswith('.pdf'):
+            try:
+                pdf_reader = PyPDF2.PdfReader(io.BytesIO(conteudo_bytes))
+                for page in pdf_reader.pages:
+                    texto_pagina = page.extract_text()
+                    if texto_pagina:
+                        texto_extraido += texto_pagina + "\n"
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Erro ao ler a estrutura do PDF: {str(e)}")
+                
+        elif nome_arquivo.endswith('.txt'):
+            try:
+                texto_extraido = conteudo_bytes.decode("utf-8")
+            except UnicodeDecodeError:
+                raise HTTPException(status_code=400, detail="Formato TXT inválido. Use a codificação UTF-8.")
+        else:
+            raise HTTPException(status_code=400, detail="Formato não suportado. Envie apenas .pdf ou .txt")
+
+        if not texto_extraido.strip():
+            raise HTTPException(status_code=400, detail="Não foi possível extrair texto legível deste arquivo.")
+
         novo_documento = Documento(
             titulo=file.filename,
             tipo=file.content_type,
@@ -40,16 +63,8 @@ async def upload_documento(
         db.add(novo_documento)
         db.commit()
         db.refresh(novo_documento)
-        
-        # 2. Divide o texto em blocos reais
         paragrafos = chunk_text(texto_extraido)
         
-        if not paragrafos:
-            db.delete(novo_documento)
-            db.commit()
-            raise HTTPException(status_code=400, detail="O documento de texto está vazio ou não possui texto válido.")
-        
-        # 3. Vetoriza com garantia de sucesso
         for paragrafo in paragrafos:
             try:
                 vetor = gerar_embedding(paragrafo)
@@ -60,29 +75,36 @@ async def upload_documento(
                 )
                 db.add(novo_embedding)
             except ValueError:
-                # O Ollama falhou! Abortamos o processo e apagamos o documento.
                 db.delete(novo_documento)
                 db.commit()
                 raise HTTPException(
                     status_code=500, 
                     detail="Falha no Motor IA: O Ollama não conseguiu gerar os vetores. O documento foi rejeitado."
                 )
+
+        if pendencia_id:
+            pendencia = db.query(SolucaoNaoEncontrada).filter(
+                SolucaoNaoEncontrada.id_solucaonaoencontrada == pendencia_id
+            ).first()
+            
+            if pendencia:
+                pendencia.status = 'resolvido'
                 
         db.commit()
-        return novo_documento
         
-    except UnicodeDecodeError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, 
-            detail="Formato de arquivo não suportado nativamente. Envie um arquivo .txt válido."
-        )
+        return {
+            "id_documento": novo_documento.id_documento,
+            "titulo": novo_documento.titulo,
+            "mensagem": f"Arquivo {file.filename} processado com sucesso.",
+            "pendencia_encerrada": bool(pendencia_id)
+        }
+        
     except HTTPException as he:
-        # Permite que os nossos próprios erros (como o de vetor vazio) cheguem ao front
         raise he
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# ROTA 3: Excluir documento e limpar embeddings (Apenas Admin)
+
 @router.delete("/{id_documento}")
 def excluir_documento(id_documento: int, db: Session = Depends(get_db), admin: Usuario = Depends(obter_usuario_admin)):
     documento = db.query(Documento).filter(Documento.id_documento == id_documento).first()
@@ -90,7 +112,6 @@ def excluir_documento(id_documento: int, db: Session = Depends(get_db), admin: U
     if not documento:
         raise HTTPException(status_code=404, detail="Documento não encontrado.")
         
-    # O SQLAlchemy lida com o cascade delete configurado no seu model para apagar os embeddings vinculados
     db.delete(documento)
     db.commit()
     
