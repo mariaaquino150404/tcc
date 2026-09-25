@@ -7,7 +7,8 @@ import { motion } from 'framer-motion';
 import { sairDoSistema } from '../../lib/auth';
 import { 
   Send, Loader2, ExternalLink, AlertCircle,
-  Home, MessageSquare, UserCircle, LogOut, Bot, User
+  Home, MessageSquare, UserCircle, LogOut, Bot, User,
+  ThumbsUp, ThumbsDown // 👉 Adicionados ícones de feedback
 } from 'lucide-react';
 
 import ReactMarkdown from 'react-markdown';
@@ -73,13 +74,17 @@ export default function Chat() {
           role: 'ia', 
           texto: data.texto, 
           url: data.url, 
-          similaridade: data.similaridade 
+          similaridade: data.similaridade,
+          id_consulta: data.id_consulta, // 👉 Guarda o ID da consulta
+          feedbackDado: false // 👉 Estado de controle
         }]);
       } else {
         setMensagens(prev => [...prev, { 
           role: 'ia', 
           erro: true, 
-          texto: data.mensagem || 'Não encontrei informações na base de conhecimento.' 
+          texto: data.mensagem || 'Não encontrei informações na base de conhecimento.',
+          id_consulta: data.id_consulta, // 👉 Também guarda o ID para pendências
+          feedbackDado: false
         }]);
       }
     } catch {
@@ -90,6 +95,27 @@ export default function Chat() {
       }]);
     } finally {
       setBuscando(false);
+    }
+  }
+
+  // 👉 NOVA FUNÇÃO PARA ENVIAR FEEDBACK
+  async function handleFeedback(index, id_consulta, util) {
+    // Atualiza a UI imediatamente para sensação de tempo real
+    setMensagens(prev => {
+      const novas = [...prev];
+      novas[index] = { ...novas[index], feedbackDado: true };
+      return novas;
+    });
+
+    try {
+      await fetch('/api/chat/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_consulta, util }),
+        credentials: 'include',
+      });
+    } catch (err) {
+      console.error("Falha ao registrar feedback", err);
     }
   }
 
@@ -131,10 +157,10 @@ export default function Chat() {
         </div>
       </aside>
 
-      {/* Conteúdo Principal do Chat (Transformado em Coluna Flexível Pura) */}
+      {/* Conteúdo Principal do Chat */}
       <main className="flex-1 flex flex-col h-full bg-gray-50">
         
-        {/* Header no fluxo normal (shrink-0 garante que não é esmagado) */}
+        {/* Header no fluxo normal */}
         <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 shrink-0 shadow-sm z-10">
           <div className="flex items-center gap-3">
             <div className="bg-emerald-100 p-2 rounded-lg text-[#059669]">
@@ -147,7 +173,7 @@ export default function Chat() {
           </div>
         </header>
 
-        {/* Área de Mensagens (Ocupa o espaço livre e tem rolagem) */}
+        {/* Área de Mensagens */}
         <section className="flex-1 overflow-y-auto p-4 sm:p-8">
           <div className="max-w-4xl mx-auto flex flex-col gap-6 pb-4">
             
@@ -168,9 +194,9 @@ export default function Chat() {
                   </div>
 
                   {/* Balão de Mensagem */}
-                  <div className={`flex flex-col gap-2 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                  <div className={`flex flex-col gap-2 ${msg.role === 'user' ? 'items-end' : 'items-start'} w-full`}>
                     
-                    <div className={`p-4 sm:p-5 rounded-2xl shadow-sm text-sm
+                    <div className={`p-4 sm:p-5 rounded-2xl shadow-sm text-sm w-full
                       ${msg.role === 'user' 
                         ? 'bg-[#059669] text-white rounded-tr-none' 
                         : msg.erro 
@@ -190,19 +216,49 @@ export default function Chat() {
                       )}
                     </div>
 
-                    {/* Rodapé da Mensagem da IA */}
-                    {msg.role === 'ia' && (msg.url || msg.similaridade) && (
-                      <div className="flex flex-wrap items-center gap-3 pl-2 mt-1">
-                        {msg.url && (
-                          <a href={msg.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[#059669] font-medium text-[11px] hover:underline">
-                            <ExternalLink size={12} /> Acessar Documento
-                          </a>
+                    {/* 👉 RODAPÉ DA MENSAGEM: Links, Confiança e Feedback */}
+                    {msg.role === 'ia' && (msg.url || msg.similaridade || msg.id_consulta) && (
+                      <div className="flex flex-wrap items-center justify-between w-full pl-2 mt-1">
+                        
+                        <div className="flex items-center gap-3">
+                          {msg.url && (
+                            <a href={msg.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[#059669] font-medium text-[11px] hover:underline">
+                              <ExternalLink size={12} /> Acessar Documento
+                            </a>
+                          )}
+                          {msg.similaridade && (
+                            <span className="text-[10px] font-semibold text-gray-500 bg-gray-200/60 px-2 py-1 rounded-md">
+                              Confiança: {(msg.similaridade * 100).toFixed(1)}%
+                            </span>
+                          )}
+                        </div>
+
+                        {/* 👉 BOTOÕES DE FEEDBACK */}
+                        {msg.id_consulta && (
+                          <div className="flex items-center gap-2">
+                            {msg.feedbackDado ? (
+                              <span className="text-[10px] text-gray-400 italic">Obrigado por avaliar!</span>
+                            ) : (
+                              <>
+                                <button 
+                                  onClick={() => handleFeedback(index, msg.id_consulta, true)}
+                                  className="text-gray-400 hover:text-[#059669] transition-colors p-1 cursor-pointer"
+                                  title="Resposta Útil"
+                                >
+                                  <ThumbsUp size={14} />
+                                </button>
+                                <button 
+                                  onClick={() => handleFeedback(index, msg.id_consulta, false)}
+                                  className="text-gray-400 hover:text-rose-500 transition-colors p-1 cursor-pointer"
+                                  title="Não Ajudou"
+                                >
+                                  <ThumbsDown size={14} />
+                                </button>
+                              </>
+                            )}
+                          </div>
                         )}
-                        {msg.similaridade && (
-                          <span className="text-[10px] font-semibold text-gray-500 bg-gray-200/60 px-2 py-1 rounded-md">
-                            Confiança: {(msg.similaridade * 100).toFixed(1)}%
-                          </span>
-                        )}
+
                       </div>
                     )}
 
@@ -231,7 +287,7 @@ export default function Chat() {
           </div>
         </section>
 
-        {/* Área de Input (Fixa no fluxo do flex, nunca vai sobrepor os balões) */}
+        {/* Área de Input */}
         <div className="shrink-0 w-full bg-gray-50 pt-2 pb-8 px-4 sm:px-8 border-t border-transparent">
           <form onSubmit={handleBuscar} className="max-w-4xl mx-auto relative bg-white rounded-2xl shadow-md border border-gray-200 overflow-hidden flex items-end transition-shadow focus-within:shadow-lg focus-within:border-[#059669]/50">
             <textarea

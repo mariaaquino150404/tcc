@@ -2,15 +2,22 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { AlertCircle, Loader2, FileSearch } from 'lucide-react';
+import { AlertCircle, Loader2, FileSearch, UploadCloud, X } from 'lucide-react';
 import SidebarAdmin from '../../../components/sidebar/sideBarAdmin';
 
 export default function GestaoPendencias() {
   const router = useRouter();
+  
+  // Estados da Tela
   const [pendencias, setPendencias] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
+
+  // Estados do Modal de Upload
+  const [modalAberto, setModalAberto] = useState(false);
+  const [pendenciaAtual, setPendenciaAtual] = useState(null);
+  const [arquivo, setArquivo] = useState(null);
+  const [enviando, setEnviando] = useState(false);
 
   useEffect(() => {
     if (!sessionStorage.getItem('emailUsuarioLogado')) {
@@ -20,7 +27,7 @@ export default function GestaoPendencias() {
     
     async function carregarPendencias() {
       try {
-        const resp = await fetch('/api/chat/pendencias', { credentials: 'include' });
+        const resp = await fetch('http://localhost:8000/api/chat/pendencias', { credentials: 'include' });
         if (!resp.ok) throw new Error('Não foi possível carregar as pendências.');
         const data = await resp.json();
         setPendencias(data);
@@ -32,6 +39,59 @@ export default function GestaoPendencias() {
     }
     carregarPendencias();
   }, [router]);
+
+  // Ações do Modal
+  const abrirModal = (pendencia) => {
+    setPendenciaAtual(pendencia);
+    setArquivo(null);
+    setModalAberto(true);
+  };
+
+  const fecharModal = () => {
+    setModalAberto(false);
+    setPendenciaAtual(null);
+    setArquivo(null);
+  };
+
+  // Lógica de Envio do Ficheiro para o FastAPI
+  const lidarComUpload = async (e) => {
+    e.preventDefault();
+    if (!arquivo || !pendenciaAtual) return;
+
+    setEnviando(true);
+
+    // Estrutura exigida para enviar arquivos + textos na mesma requisição
+    const formData = new FormData();
+    // 'file' deve bater exatamente com o nome do parâmetro no FastAPI (file: UploadFile)
+    formData.append('file', arquivo); 
+    // 'pendencia_id' deve bater com o parâmetro Form() no FastAPI
+    formData.append('pendencia_id', pendenciaAtual.id_solucaonaoencontrada); 
+
+    try {
+      // Usamos fetch nativo aqui porque o FormData gera automaticamente 
+      // o cabeçalho 'multipart/form-data' e o 'boundary' necessários.
+      const resp = await fetch('http://localhost:8000/api/documentos/upload', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include', 
+      });
+
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}));
+        throw new Error(errData.detail || "Falha ao enviar documento.");
+      }
+
+      // REMOÇÃO INSTANTÂNEA: Filtra a pendência recém-resolvida para fora do estado
+      setPendencias(pendencias.filter(p => p.id_solucaonaoencontrada !== pendenciaAtual.id_solucaonaoencontrada));
+      
+      fecharModal();
+    } catch (error) {
+      console.error("Erro no processamento:", error);
+      alert(error.message);
+    } finally {
+      setEnviando(false);
+    }
+  };
 
   return (
     <div className="flex h-screen bg-[#f8fafc] overflow-hidden text-gray-800 font-sans selection:bg-[#103f6b]/20">
@@ -46,7 +106,7 @@ export default function GestaoPendencias() {
           </div>
         </header>
 
-        <section className="flex-1 p-10 overflow-y-auto">
+        <section className="flex-1 p-10 overflow-y-auto relative">
           <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="p-6 border-b border-gray-100 bg-gray-50/30 flex items-center justify-between">
               <h2 className="text-sm font-extrabold text-gray-900 flex items-center gap-2 uppercase tracking-wider">
@@ -98,9 +158,13 @@ export default function GestaoPendencias() {
                           </span>
                         </td>
                         <td className="py-5 px-8 text-right">
-                          <Link href="/biblioteca" className="inline-block px-5 py-2.5 bg-[#103f6b] text-white text-xs font-bold rounded-xl hover:bg-[#0c2f50] transition-colors shadow-sm hover:shadow-md transform hover:-translate-y-0.5">
-                            Adicionar Doc
-                          </Link>
+                          {/* Botão substituindo o antigo Link */}
+                          <button 
+                            onClick={() => abrirModal(p)}
+                            className="inline-block px-5 py-2.5 bg-[#103f6b] text-white text-xs font-bold rounded-xl hover:bg-[#0c2f50] transition-colors shadow-sm hover:shadow-md transform hover:-translate-y-0.5 cursor-pointer"
+                          >
+                            Solucionar
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -110,7 +174,70 @@ export default function GestaoPendencias() {
             )}
           </div>
         </section>
+
+        {/* ================= MODAL DE UPLOAD ================= */}
+        {modalAberto && (
+          <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col">
+              
+              <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                <h3 className="font-extrabold text-gray-900 text-lg">Adicionar Conhecimento</h3>
+                <button onClick={fecharModal} className="text-gray-400 hover:text-rose-500 transition-colors">
+                  <X size={20} strokeWidth={2.5} />
+                </button>
+              </div>
+
+              <div className="p-6">
+                <div className="mb-6">
+                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Resolvendo a dúvida:</p>
+                  <p className="text-sm font-semibold text-[#103f6b] bg-[#103f6b]/5 p-4 rounded-xl border border-[#103f6b]/10 italic">
+                    "{pendenciaAtual?.input}"
+                  </p>
+                </div>
+
+                <form onSubmit={lidarComUpload}>
+                  <label className="border-2 border-dashed border-gray-200 rounded-2xl p-8 flex flex-col items-center justify-center mb-8 cursor-pointer hover:border-[#103f6b]/50 hover:bg-[#103f6b]/5 transition-all group">
+                    <UploadCloud className="text-gray-400 mb-3 group-hover:text-[#103f6b] transition-colors" size={40} strokeWidth={1.5} />
+                    <span className="text-sm font-bold text-gray-700 mb-1">Clique ou arraste um arquivo</span>
+                    <span className="text-xs text-gray-400">Apenas arquivos .txt ou .pdf</span>
+                    <input 
+                      type="file" 
+                      accept=".pdf,.txt"
+                      onChange={(e) => setArquivo(e.target.files[0])}
+                      required
+                      className="hidden"
+                    />
+                    {arquivo && (
+                      <div className="mt-4 px-4 py-2 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-lg border border-emerald-100">
+                        Selecionado: {arquivo.name}
+                      </div>
+                    )}
+                  </label>
+
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={fecharModal}
+                      className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 font-bold text-sm transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!arquivo || enviando}
+                      className="flex-1 py-3 bg-[#103f6b] text-white rounded-xl hover:bg-[#0c2f50] font-bold text-sm flex justify-center items-center gap-2 disabled:opacity-50 transition-colors"
+                    >
+                      {enviando ? <Loader2 className="animate-spin" size={18} /> : 'Processar e Encerrar'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+            </div>
+          </div>
+        )}
+
       </main>
     </div>
   );
-}
+} 

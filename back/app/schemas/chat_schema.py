@@ -4,8 +4,13 @@ from typing import Optional
 class ChatRequest(BaseModel):
     pergunta: str
 
+class FeedbackRequest(BaseModel):
+    id_consulta: int
+    util: bool
+
 class ChatResponse(BaseModel):
     texto: Optional[str] = None
     url: Optional[str] = None
     similaridade: Optional[float] = None
     mensagem: Optional[str] = None
+    id_consulta: Optional[int] = None
